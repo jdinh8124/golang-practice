@@ -7,19 +7,40 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
 	quizQuestions := csvReader()
-	fmt.Println(quizQuestions)
+	userFlagTime := timeout()
 	total := len(quizQuestions)
-	correct := questionAsker(quizQuestions)
+	correct := 0
+	f := func() {
+		printResults(correct, total)
+	}
+	time.AfterFunc(time.Duration(userFlagTime), f)
+	questionAsker(quizQuestions, &correct, f)
+}
+
+func printResults(correct int, total int) {
 	stringToPrint := fmt.Sprintln("You got", correct, "out of", total)
 	fmt.Println(stringToPrint)
 }
 
-func questionAsker(questions [][]string) int {
-	userCorrect := 0
+func timeout() int {
+	fmt.Println("How many seconds should you be given?")
+	userInputReader := bufio.NewReader(os.Stdin)
+	input, err := userInputReader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+	num, numErr := strconv.Atoi(input)
+
+	if err != nil || numErr != nil || num <= 0 {
+		return 30
+	}
+	return num
+}
+
+func questionAsker(questions [][]string, correct *int, completionMessage func()) {
 	for _, item := range questions {
 		question := item[0]
 		answer := item[1]
@@ -32,21 +53,21 @@ func questionAsker(questions [][]string) int {
 
 		if err != nil {
 			fmt.Println("Error reading input answer")
-			return 0
+			*correct = 0
 		}
 
 		if _, err := strconv.Atoi(input); err != nil {
 			fmt.Println("not a number you have failed the quiz")
-			return 0
+			*correct = 0
 		}
 
 		input = strings.TrimSuffix(input, "\n")
 
 		if input == answer {
-			userCorrect++
+			*correct++
 		}
 	}
-	return userCorrect
+	completionMessage()
 }
 
 func csvReader() [][]string {
